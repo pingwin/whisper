@@ -666,7 +666,6 @@ def __archive_update_many(fh,header,archive,points):
         value += prev_value
       else:
         value = prev_value - value
-      print "pv ", prev_value, " nv ", value
       fh.seek(fh_pos)
       archive['offset'] = a_offset
     if (not previousInterval) or (interval == previousInterval + step):
