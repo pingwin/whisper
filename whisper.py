@@ -596,7 +596,7 @@ path is a string
 points is a list of (timestamp,value) points
 """
   if not points: return
-  points = [ (int(t),float(v)) for (t,v) in points]
+  points = map(lambda p: ( int(p[0]), float(p[1]), 0 ) if len(p) == 2 else ( int(p[0]), float(p[1]) , p[2] ), points)
   points.sort(key=lambda p: p[0],reverse=True) #order points by timestamp, newest first
   fh = None
   try:
@@ -648,14 +648,27 @@ def file_update_many(fh, points):
 
 def __archive_update_many(fh,header,archive,points):
   step = archive['secondsPerPoint']
-  alignedPoints = [ (timestamp - (timestamp % step), value)
-                    for (timestamp,value) in points ]
-  alignedPoints = dict(alignedPoints).items() # Take the last val of duplicates
+  alignedPoints = [ (timestamp - (timestamp % step), value, action)
+                    for (timestamp,value, action) in points ]
   #Create a packed string for each contiguous sequence of points
   packedStrings = []
   previousInterval = None
   currentString = ""
-  for (interval,value) in alignedPoints:
+  for (interval,value,action) in alignedPoints:
+    if action != 0:
+      #if action == 1 incr or if action == -1 decr
+      assert action == 1 or action == -1
+      fh_pos = fh.tell()
+      a_offset = archive['offset']
+      (_,prev_value) = __archive_fetch(fh, archive, interval-1, interval)
+      prev_value = prev_value[0]
+      if action>0:
+        value += prev_value
+      else:
+        value = prev_value - value
+      print "pv ", prev_value, " nv ", value
+      fh.seek(fh_pos)
+      archive['offset'] = a_offset
     if (not previousInterval) or (interval == previousInterval + step):
       currentString += struct.pack(pointFormat,interval,value)
       previousInterval = interval
